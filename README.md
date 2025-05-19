@@ -1,2 +1,2 @@
 # R-Projects
-I have m R projects in this repository
+I have my R data science projects in this repository.

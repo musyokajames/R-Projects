@@ -1,0 +1,279 @@
+---
+title: "R Data analysis"
+author: "Musyoka James"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Project Definition
+
+In this markdown file, I will perform numerous exploratory data analysis projects using R. I will use the data that is provided in R when you install the `tidyverse` package. Lets go...
+
+
+``` {r - load-my-libraries}
+
+library(tidyverse)
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+```
+
+I have the packages installed in my laptop, therefore I will just load them - basically tell R that I need to use them in this project. Another method would be using `require(tidyverse)`, this performs the same function.
+
+This libraries are necessary and essential in performing data analysis and visualization in R. Here is a breakdown of the ones I have used;
+
+> The `tidyverse package` is a collection of R packages designed for data manipulation and visualization, making data analysis tasks more efficient and user-friendly.
+
+> `ggplot2` is a powerful package for creating visually appealing and customizable data visualizations,
+
+> `dplyr` provides a set of functions that streamline data manipulation tasks.
+
+##View the datasets in our packages
+
+As mentioned above our libraries contain sample datasets for practice, so next we'll view some of them...or all!
+
+```{r - view-datasets}
+
+#View the datasets
+data()
+
+#When we run the above line of code we can see some R data sets. At the end of the list, we have some additonal information `Use ‘data(package = .packages(all.available = TRUE))’to list the data sets in all *available* packages.` So why not?
+
+#List the data sets in all *available* packages
+data(package = .packages(all.available = TRUE))
+
+#As expected this will provide an extensive list of all the datasets available.
+
+```
+
+##Pick a Dataset for EDA
+
+For my first task, I will use the `mtcars` dataset. 
+
+To know more about it, I'll write `?mtcars` in the console. 
+
+This is the description it returns;
+"The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models)."
+
+>My task is to explore fuel efficiency.
+
+```{r - exploratory-data-analysis-begin}
+#View my Dataset
+View(mtcars)
+
+#data wrangling - I think that's what it's called.
+#So I want to get more information on my data. Learn it before I start working on/ with it.
+
+head(mtcars)
+
+tail(mtcars)
+
+dim(mtcars)
+
+str(mtcars)
+
+names(mtcars)
+
+attributes(mtcars)
+
+summary(mtcars)
+```
+
+
+In the above code, I performed a data manipulation process which involves inspecting and summarizing the data to get a better understandion of its content. 
+
+I might have gone overboard and used some that are not necessary for this case, but I'll keep them.
+
+Here's a summary of what each of them does;
+
+Previewing the First 5 Rows: By using the head(mtcars) command, we have displayed the first 5 rows of the data set. This is an initial step to get a glimpse of the data's structure and the kind of information it contains. Viewing the first few rows helps us identify the column names, data types, and the actual values present in the data set.
+
+Previewing the Last 5 Rows: Conversely, the tail(mtcars) command allows us to see the last 5 rows of the data set. This complements the previous step and provides insight into the data set's end, helping us verify the continuity and completeness of the data.
+
+Dimensions of the Data: The dim(mtcars) command displays the dimensions of the data set, showing the number of rows and columns it contains. Understanding the data set's size is crucial as it indicates the amount of information we have at our disposal for analysis.
+
+Names of the Data Set : The names(mtcars) command provides the names of our columns. This is useful as it helps us to know the variable names(column names)of our dataset.
+
+Attributes of the Data Set: The attributes(mtcars) command provides information about the data set's attributes, such as the variable names, data types, and other metadata. This helps us know the essential characteristics of the data set and prepares us for further data processing.
+
+Summary Statistics: By using summary(mtcars), we obtain summary statistics for each column in the data set. This includes measures such as the mean, median, minimum, maximum, and quartiles for numerical variables. Summary statistics give us an overview of the data distribution and provide insights into the central tendencies of the data set
+
+The dataset does not have missing values hence it is very easy to work with, Later on we'll deal with datasets that have missing values.
+
+## Visualize our data
+
+To better understand our data it is best to visualize it.
+
+```{r -visualize-our-data}
+# I want to compare mpg across different numbers of cylinders
+
+mtcars |> 
+  select(mpg, cyl) |> 
+  group_by(cyl) |> 
+  summarise(average= mean(mpg)) |> 
+  ggplot(aes(cyl, average))+
+  geom_point()
+
+
+```
+
+## Dealing with missing values
+
+In the following dataset we will deal with missing values, how to spot them and what to do with them.
+
+The dataset I will use is `airquality`. For more information about it `?airquality` in the console
+
+```{r handling-missing-values}
+
+#View(airquality)
+
+head(airquality)
+
+tail(airquality)
+
+dim(airquality)
+
+summary(airquality)
+
+#Create a vector with all the columns that have a missing value. We want to replace the missing value with the median value for each of this columns
+columns_with_missing_values <- c("Ozone", "Solar.R")
+
+#Get the median value for each of the selected column. The `na.rm=TRUE` removes/ ignores the NA values in those columns when computing the median
+median_value <- sapply(airquality[columns_with_missing_values], median, na.rm = TRUE)
+
+#preview to see the value
+median_value
+
+library(dplyr)
+
+#Replace the missing values with the median using mutate
+airquality <- airquality |> 
+  mutate(across(
+    all_of(columns_with_missing_values),
+    ~ifelse(is.na(.), median_value[cur_column()], .)
+    ))
+
+#Preview to see if the changes are effected
+airquality
+
+
+#Visualize the temperature trends over months
+ggplot(airquality, aes(Month, Temp))+
+  geom_point()
+
+airquality |> 
+  group_by(Month) |> 
+  summarise(avg_temp = mean(Temp)) |> 
+  ggplot(aes(Month, avg_temp))+
+  geom_point(aes(colour = Month, size = 2))+
+  geom_line()
+
+
+```
+
+I have observed the presence of missing values denoted by the following symbol '<NA>' in the following columns; `Ozone` and `Solar.R`. Managing missing data is crucial for ensuring the accuracy and reliability of our analysis, and we will apply appropriate techniques to handle these missing values appropriately.
+
+For observations that are positively skewed or has outliers it is advisable to replace the missing values using the median.
+
+Additionally, when dealing with non-normally distributed data, the median offers a more accurate representation of the typical value compared to the mean, which could be heavily influenced by extreme values. By using the median for missing value imputation, we can ensure the integrity of our data set and produce reliable results in our subsequent analyses.
+
+For observations where the data is symmetrially distributed we use the mean.
+
+>The task was to Visualize the temperature trends over the months.
+
+I created a scatter plot that displays the raw value and aids in identifying the outliers and variations.
+
+I observed that the temperature ranges were high in the months 7 and 8.
+
+Month 8 was the hottest month.
+
+I also ploted month vs average temperature using both geom_point and geom_line.
+
+This further confirmed that month 7 and 8 were the hottest. This are the summer months.Month 5 had the lowest average temperature.
+
+```{r analyze-diamond-pricing}
+
+#View(diamonds)
+
+head(diamonds)
+
+tail(diamonds)
+
+dim(diamonds)
+
+summary(diamonds)
+
+
+diamonds |> 
+  ggplot(aes(x = reorder(cut, price), y = price))+ #Reorders cut based on the price
+  geom_boxplot()+
+  facet_wrap(~color)+
+  labs(x = "Price", y = "Cut")+
+  coord_flip()
+
+```
+
+
+
+The premium cut in the color 'I' and 'J' are probably the most expensive.
+
+The price for the fair cut in 'I' is lower than I would've expected.
+
+##Investigate Fuel Economy
+
+```{r investigat-fuel-economy}
+
+#View(mpg)
+
+head(mpg)
+
+tail(mpg)
+
+summary(mpg)
+
+#Explore the relationshp between engine size and highway mpg
+cor(mpg$displ, mpg$hwy)
+
+mpg |> 
+  ggplot(aes(displ, hwy))+
+  geom_point(aes(colour = class))+
+  geom_smooth(se = FALSE)
+
+```
+
+
+The correlation return -0.77 which is a strong negative correlation
+
+This means as engine size increases, highway mpg decreases.
+
+It is essential to note that correlation does not imply causation. Thecorrelation observed in the table indicates an association between the two variables, but it does not necessarily mean that one variable causes the other.
+
+
+##Analyze supplement effect on tooth growth
+```{r }
+#View(ToothGrowth)
+summary(ToothGrowth)
+
+ToothGrowth |> 
+  ggplot()+
+  geom_boxplot(aes(factor(dose), len))+ #convert dose to a factor
+  facet_wrap(~supp)+
+  labs(x = "Dosage", y = "Tooth Length")
+
+```
+
+
+As the dose increases from 0.5 to 2.0, tooth length generally increases for both supplements (OJ and VC).
+
+At the 0.5 mg dose, OJ leads to longer tooth growth than VC.
+At 1.0 mg, OJ still results in slightly longer growth than VC.
+However, at 2.0 mg, tooth growth at VC is greater than in OJ.
+
+This suggests that OJ may be more effective at lower doses, but VC is very effective at the highest dose.
+
+

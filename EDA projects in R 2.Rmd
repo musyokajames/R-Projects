@@ -1,0 +1,199 @@
+---
+title: "EDA projects in R"
+author: "Musyoka James"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load libraries
+
+```{r} 
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+```
+
+#Economic Trend analysis
+```{r } 
+
+head(economics)
+
+tail(economics)
+
+summary(economics)
+
+str(economics)
+
+#Plotting unemployment rate over time
+
+economics |> 
+  ggplot(aes(date, unemploy))+
+  geom_line()+
+  labs(title = "Unemployment rate over time", x = "Year", y = "Unemplyoyed")+
+  annotate("text", x = as.Date("2008-01-01"), y = 10500, label = "2008 Recession", color = "red")+
+  theme_bw()
+```
+
+
+The Number of unemployed people keeps increasing as time goes on
+
+The highest peak of unemployment was in 2010
+
+From the early 1960s, unemployment shows a generally fluctuating trend with several sharp rises and falls, indicating periods of economic downturn and recovery
+
+Significant spikes in unemployment are seen around the early 1980s and late 2000s, possibly corresponding to known recessions.
+
+I have annotated the 2008 Recession where the number of unemployment cases skyrocketed due to harsh economic times and layoffs.
+
+
+## Explore housing market
+```{r} 
+#View(txhousing)
+
+str(txhousing)
+
+head(txhousing)
+
+summary(txhousing)
+
+#We only want to look at the median home price in Austin
+
+#Hence we filter
+txhousing |> 
+  filter(city == "Austin") |> 
+  group_by(year) |> 
+  summarise(median = median(median)) |> 
+  ggplot(aes(year, median))+
+  geom_line() +
+  geom_point(aes(size = 2, alpha = 0.5))+
+  geom_smooth(se = F)+
+  theme_classic()
+
+```
+
+
+Between 2000 and 2015, the median home price in Austin showed a consistent upward trend, indicating a growing housing market. A noticeable dip occurred around 2008–2009, possibly due to the global financial crisis. Since 2010, the prices have risen more rapidly, reflecting increased demand and urban growth in Austin.
+
+
+##Explore Storm Intensities
+```{r}
+#View(storms)
+
+str(storms)
+
+head(storms)
+
+tail(storms)
+
+summary(storms)
+
+#Identify the most intense hurricanes
+storms |> 
+  filter(status == "hurricane") |> 
+  arrange(desc(wind))
+
+
+#Compare wind distributions across status
+storms |> 
+  ggplot(aes(x = status, y = wind))+
+  geom_boxplot()+
+  theme_classic()+
+  coord_flip()
+
+```
+
+
+
+#Global life expectancy and GDP
+#Compare life expectancy vs gdp per capita for 2007
+
+```{r}
+library(gapminder)
+#View(gapminder)
+
+head(gapminder)
+
+str(gapminder)
+
+summary(gapminder)
+
+gapminder |> 
+  filter(year == 2007) |> 
+  ggplot(aes(gdpPercap, lifeExp))+
+  geom_point(aes(colour = continent), size = 2)+
+  geom_smooth(se = F, method = lm)+
+  scale_x_log10()+
+  theme_bw()+
+  labs(title = "Life Exp VS GDP per Capita in 2007",
+        x = "GDP per Capita (log scale)",
+        y = "Life Expectancy")
+
+
+```
+
+
+In 2007, there was a positive linear relationship between GDP per capita and life expectancy across countries. As GDP per capita increased (on a log scale), life expectancy tended to rise. This suggests that wealthier countries generally had longer-lived populations.
+
+There may still be variation by continent (shown by color), but the overall global trend is upward.
+
+
+#Flight delay analysis
+```{r } 
+#Load the required packages
+library(nycflights13)
+
+#View(flights)
+str(flights)
+
+head(flights)
+
+tail(flights)
+
+summary(flights)
+
+#We need the airlines dataset in this project.
+#We are going to join the two datasets 
+
+summary(airlines)
+
+#Find airlines with the worst average delay
+flights |> 
+  select(dep_delay, arr_delay, carrier, month) |> 
+  drop_na() |> 
+  left_join(airlines) |> 
+  group_by(name) |> 
+  summarise(avg_dep_delay = mean(dep_delay)) |> 
+  arrange(desc(avg_dep_delay)) 
+
+#Analyze delay trends over months
+flights |> 
+  select(dep_delay, arr_delay, month) |> 
+  drop_na() |> 
+  group_by(month) |> 
+  summarise(avg_arr_delay = mean(arr_delay)) |> 
+  ggplot(aes(month, avg_arr_delay))+
+  geom_point()+
+  geom_line()+
+  theme_bw()+
+  labs(title = "Average Arrival Delay Through The Months", x = "Month", y = "Average Arrival Delay")
+```
+Arrival delays vary throughout the year, showing a general pattern of increases and decreases across months. Certain months e.g. the 6th and 7th months experience higher average delays, while others (e.g., the 9th month) have lower delays- it is in the negatives.
+
+This trend may reflect seasonal factors like bad weather, holiday travel spikes, or air traffic congestion during specific times of the year.
+
+Arrival delays showed noticeable variation across the year. The highest delays occurred in June and July, suggesting possible seasonal congestion or weather-related issues during summer travel.
+
+In contrast, September and October had the lowest average delays, even dipping into negative values, indicating that flights tended to arrive earlier than scheduled in those months.
+
+After October, delays rose sharply, possibly due to increased holiday travel or weather disruptions toward the end of the year.
+
+
+
+
+
+

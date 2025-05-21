@@ -1,0 +1,270 @@
+---
+title: "R Analysis"
+author: "Musyoka James"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+>In this project I will import data using a link and work on it. The goal is to get meaningful informatio from the data. Lets go..
+
+#Load the libraries
+```{r load-libraries}
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(janitor)
+
+```
+
+#Load the data
+```{r get-data}
+
+data <- read_csv("https://raw.githubusercontent.com/cema-uonbi/internship_task/main/data/cema_internship_task_2023.csv")
+#View the data that has been imported as a csv file.
+#View(data)
+```
+
+#Data Exploration
+```{r data-exploration}
+
+#get the first 6 rows of the data
+head(data) 
+
+#get the last 6 rows of my data
+tail(data)
+
+dim(data)
+
+#get the basic stats(min, max, no. of NAs)
+summary(data)
+
+#get the names of the variables
+names(data)
+
+```
+
+#Data Wrangling
+```{r data-wrangling}
+#Using the janitor package convert the variable names into snake_case
+data <- data |> 
+  clean_names()
+
+#Observe the changes
+names(data)
+#View(data)
+
+
+```
+
+
+
+#Total Dewormed
+```{r }
+
+#Get the most and least dewormed counties
+data |> 
+  select(county, total_dewormed) |> 
+  group_by(county) |> 
+  summarise(total_county_dewormed = sum(total_dewormed)) |> 
+  arrange(desc(total_county_dewormed))
+
+max_index <- which.max(data$total_dewormed)
+min_index <- which.min(data$total_dewormed)
+
+max_county <- data$county[max_index]
+min_county <- data$county[min_index]
+
+max_county
+min_county
+
+#Plot a graph to show number of dewormed by county
+
+data |> 
+  group_by(county)|> 
+  ggplot(aes(x = county, y = total_dewormed)) +
+  geom_col()+
+  coord_flip()
+
+```
+
+
+Nairobi county has the highest number of dewormed people, while Lamu county has the lowest number.
+
+*It is important to note however that the population in the two counties differs greatly, with Nairobi having a very high population which translates to more people being dewormed.*
+
+
+#Acute Malnutrition
+```{r}
+#Get the counties with highest and lowest malnutrition
+#We have to deal with the NAs 
+
+#select all columns with NAs
+columns_to_replace <- c("acute_malnutrition", "stunted_6_23_months", "stunted_0_6_months", "stunted_24_59_months")
+columns_to_replace
+
+#Because the observations are skewed we will replace the mssing values with the median
+#Calculate the median for each of this rows
+the_median <-  sapply(data[columns_to_replace], median, na.rm =  TRUE)
+the_median
+
+#Replace the missing values with the median
+data <- data |> 
+  mutate(across(all_of(columns_to_replace),
+      ~ifelse(is.na(.), the_median[cur_column()], .)
+    )
+  )
+
+
+total_mal <- data |> 
+  select(county, acute_malnutrition) |> 
+  group_by(county) |> 
+  summarise(total_mal = sum(acute_malnutrition)) 
+
+total_mal
+
+total_mal |> 
+  ggplot(aes(reorder(county, total_mal), total_mal))+
+  geom_col()+
+  coord_flip()+
+  theme_bw()+
+  labs(title = "Distribution of Acute malnutrition by County",
+       x = "County",
+       y = "Total Malnutrition")
+
+
+#To observe the distribution of malnutrition between the counties
+total_mal |> 
+  ggplot(aes(x = total_mal))+
+  geom_boxplot()+
+  coord_flip()
+
+
+```
+Wajir County has the highest number of Acute malnutrition while Baringo County has the lowest.
+
+Wajir County’s high levels of acute malnutrition may be driven by recurrent droughts leading to food and water scarcity, widespread poverty, limited access to healthcare and sanitation services, low caregiver awareness on nutrition, and ongoing insecurity that disrupts livelihoods and aid delivery.
+
+The Boxplot is wide indicate more variation across the counties.
+
+There are outliers, like Wajir, which have very high rates of acute malnutrition.
+
+#Stunted Growth
+```{r}
+
+total_stunted <- data |> 
+  select(county, starts_with("stunted")) |> 
+  group_by(county) |> 
+  summarise(stunted_6_23_months = sum(stunted_6_23_months),
+            stunted_0_6_months = sum(stunted_0_6_months),
+            stunted_24_59_months = sum(stunted_24_59_months))
+
+#0-6 months           
+total_stunted |> 
+  select(county, stunted_0_6_months) |> 
+  arrange(desc(stunted_0_6_months)) |> 
+  ggplot(aes(x = reorder(county, stunted_0_6_months), y = stunted_0_6_months))+
+  geom_col()+
+  coord_flip()
+
+#6-23 months           
+total_stunted |> 
+  select(county, stunted_6_23_months) |> 
+  arrange(desc(stunted_6_23_months)) |> 
+  ggplot(aes(x = reorder(county, stunted_6_23_months), y = stunted_6_23_months))+
+  geom_col()+
+  coord_flip()
+
+#24-59 months           
+total_stunted |> 
+  select(county, stunted_24_59_months) |> 
+  arrange(desc(stunted_24_59_months)) |> 
+  ggplot(aes(x = reorder(county, stunted_24_59_months), y = stunted_24_59_months))+
+  geom_col()+
+  coord_flip()
+
+stunted_population <- total_stunted |> 
+  mutate(stunted_pop = stunted_6_23_months + stunted_0_6_months + stunted_24_59_months)
+
+stunted_population |> 
+  ggplot(aes(x = reorder(county, stunted_pop), y = stunted_pop))+
+  geom_col()+
+  coord_flip()
+
+stunted_population
+total_mal
+
+#To observe is there is a relationship between stunting and acute malnutrition
+stunted_population |> 
+  left_join(total_mal, by = "county") |> 
+  ggplot(aes(total_mal, stunted_pop))+
+  geom_point()+
+  geom_smooth(se = F)
+
+```
+
+
+#Diarrhoea Cases
+```{r diarrhoea-cases}
+
+total_dia_cases <- data |> 
+  select(county, diarrhoea_cases) |> 
+  group_by(county) |> 
+  summarise(total_dia = sum(diarrhoea_cases))
+total_dia_cases
+
+total_dia_cases |> 
+  ggplot(aes(x = reorder(county, total_dia), y = total_dia))+
+  geom_col()+
+  coord_flip()+
+  labs(title = "Diarrhoea Cases By County", 
+       x = "County",
+       y = "Total Diarrhoea Cases")+
+  theme_classic()
+
+
+```
+
+
+#Underweight population
+```{r }
+total_underweight <- data |> 
+  select(county, starts_with("underweight")) |> 
+  group_by(county) |> 
+  summarise(underweight_0_6_months = sum(underweight_0_6_months),
+            underweight_6_23_months = sum(underweight_6_23_months),
+            underweight_24_59_months = sum(underweight_24_59_months))
+
+underweight_population <- total_underweight |> 
+  mutate(underweight_pop = underweight_0_6_months + underweight_6_23_months + underweight_24_59_months)
+
+underweight_population |> 
+  ggplot(aes(x = reorder(county, underweight_pop), y = underweight_pop))+
+  geom_col()+
+  coord_flip()+
+  theme_classic()+
+  labs(x = "County",
+       y = "Underweight Population",
+       title = "Underweight population By County.")
+```
+
+*Check if there is a Correlation between Underweight and Diarrhoea *
+```{r }
+underweight_population |> 
+  left_join(total_dia_cases, by = "county") |> 
+  ggplot(aes(total_dia, underweight_pop))+
+  geom_point()+
+  geom_smooth(se = F)+
+  labs(title = "Relationship between diarrhoea cases and underweight population",
+       x = "Total Diarrhoea Cases",
+       y = "Underweight Population")+
+  theme_bw()
+
+```
+There is a positive relationship between the two. As Diarrhoea cases increased the underweight population in those counties went up. 
+
+However, correlation is not causation.

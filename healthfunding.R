@@ -36,7 +36,14 @@ country_eligibility <- country_eligibility |>
     all_of(columns_with_missing_values),
     ~ifelse(is.na(.), "Unknown", .)
   ))
+#Check whether there are missing values
+any(is.na(country_eligibility))
 
+#Drop unwnated columns
+country_eligibility <- country_eligibility |> 
+  select(2:10)
+
+any(is.na(country_eligibility))
 #View the wrangled dataset
 View(country_eligibility)
 
@@ -154,17 +161,29 @@ animate(p)
 
 #Clustering
 # K-means Clustering
+nrow(country_eligibility)
+any(is.na(country_eligibility))
 
 #Scaling
 scaled_data <- country_eligibility |> 
   select(geography_name1,disease_burden,income_level, is_eligible) |> 
-  mutate(disease_burden = recode(disease_burden, "Extreme" = 1,"High" = 2,"Low" = 3, "Moderate" = 4, "Not High" = 5, "Severe" = 6, "Unknown" = 7 )) |> 
+  mutate(disease_burden = recode(disease_burden, "Extreme" = 1,"High" = 2,"Low" = 3, "Moderate" = 4, "Not High" = 5, "Severe" = 6, "Unknown" = 7 , "No Data" = 8)) |> 
   mutate(income_level = recode(income_level, "Upper middle income" = 1,  "Low income" = 2, "Lower-Lower middle income" = 3, "Lower middle income" = 4, "Small Island Economy" = 5, "Upper-Lower middle income" = 6, "High income" = 7, "Unknown" = 8)) |> 
   mutate(is_eligible = recode(is_eligible, "True" = 1, "False" = 0)) |> 
   select(-geography_name1) |> 
   scale()
 
-scaled_data  
+scaled_data
+nrow(scaled_data)
+#Check wheter there is a NA in the data
+any(is.na(scaled_data))
+any(is.nan(scaled_data))
+any(is.infinite(scaled_data))
+
+scaled_data <- na.omit(scaled_data)
+any(is.na(scaled_data))
+
+nrow(scaled_data)
 
 #WSS Plot
 wssplot <- function(data, nc=15, seed=1234){
@@ -178,6 +197,15 @@ wssplot <- function(data, nc=15, seed=1234){
 }
 wssplot(scaled_data)
 
-kmeans(scaled_data, 7)
+#get the Kmeans clustering
 
+kmeans_result <- kmeans(scaled_data, 7)
 
+kmeans_result
+
+#Attach the cluster labels to the data set
+
+country_eligibility <- country_eligibility |> 
+  mutate(cluster_group = as.factor(kmeans_result$cluster))
+summary(country_eligibility)
+View(country_eligibility)

@@ -1,0 +1,215 @@
+---
+title: "inflation_analysis"
+author: "Musyoka James"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading the required libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(janitor)
+library(tidyr)
+
+```
+
+
+Import and inspect the raw data
+```{r}
+
+inflation_data <- read_excel("data/imf-dm-export-20250712.xls") |>   drop_na() |> 
+  rename(country = `Inflation rate, average consumer prices (Annual percent change)`)
+
+View(inflation_data) 
+glimpse(inflation_data)
+
+```
+
+Data Wrangling and exploratory analysis
+```{r}
+
+inf_data <- inflation_data |> 
+  pivot_longer(cols = -country, names_to = "Year", values_to = "Inflation") |> 
+  mutate(Year = as.integer(Year),
+         Inflation = as.numeric(Inflation)) |> 
+  drop_na()
+
+View(inf_data)
+
+
+inf <- inf_data |> 
+  filter(country %in% c("Kenya", "Tanzania", "Uganda", "Burundi", "Rwanda", "South Africa", "Egypt", "Nigeria", "Morocco")) 
+
+common_years <- inf |> 
+  distinct(country, Year) |> 
+  count(Year) |> 
+  filter(n == 9) |> 
+  pull(Year)
+
+common_years
+
+  
+inf <- inf |> 
+  filter(Year %in% common_years)
+
+
+View(inf)
+
+
+```
+
+Visualizations; inflation trends and country averages
+```{r}
+inf |> 
+  ggplot(aes(Year, Inflation))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(~country)
+
+inf |> 
+  group_by(country) |> 
+  summarise(average = mean(Inflation)) |> 
+  ggplot(aes(country, average))+
+  geom_col()
+
+```
+
+#Time forecasting models
+```{r}
+#Check the datatype to confirm structure
+class(inf)
+
+library(forecast)
+
+#Arima function
+arima_function <- function(country_name){
+    country_inf <- inf |> 
+      filter(country == country_name) |> 
+      arrange(Year) |>
+      select(Year, Inflation)
+    
+    country_ts <- ts(country_inf$Inflation, start = 1996, end = 2024, frequency = 4)
+    
+    arima_model <- auto.arima(country_ts)
+    
+    arima_forecast <- forecast(arima_model, h = 8)
+    
+    plot <- autoplot(arima_forecast) + ggtitle(paste("Arima forecast for"),country_name)
+    
+    train <- window(country_ts, end = 2019)
+    test <- window(country_ts, start = 2020)
+    
+    model_train <- auto.arima(train)
+    forecast_train <- forecast(model_train, h = length(test))
+    
+    accuracy <- accuracy(forecast_train, test)
+    
+    list(plot, accuracy)
+}
+
+arima_function("Kenya")
+
+
+#ETS Model
+ets_function <- function(country_name){
+    country_inf <- inf |> 
+      filter(country == country_name) |> 
+      arrange(Year) |> 
+      select(Year, Inflation)
+    
+    country_ts <- ts(country_inf$Inflation, start = 1996, end = 2024, frequency = 4)
+    
+    ets_model <- ets(country_ts)
+    
+    ets_forecast <- forecast(ets_model, h = 8)
+    
+    plot <- autoplot(ets_forecast) + ggtitle(paste("ETS forecast for"),country_name)
+    
+    train <- window(country_ts, end = 2019)
+    test <- window(country_ts, start = 2020)
+    
+    model_train <- ets(train)
+    forecast_train <- forecast(model_train, h = length(test))
+    
+    accuracy <- accuracy(forecast_train, test)
+    
+    list(plot, accuracy)
+}
+
+ets_function("Tanzania")
+
+#Prophet model
+library(prophet)
+
+prophet_function <- function(country_name){
+ 
+   country_inf <- inf |> 
+    filter(country == country_name) |> 
+    arrange(Year) |> 
+    mutate(ds = as.Date(paste0(Year, "-01-01")))|> 
+    select(ds ,y = Inflation)
+  
+  train_data <- country_inf[country_inf$ds <= "2019-01-01",]
+  test_data <- country_inf[country_inf$ds > "2019-01-01",]
+  
+  prophet_model <- prophet(train_data)
+  
+  future <- make_future_dataframe(prophet_model, periods = length(test_data), freq = "year")
+  
+  forecast <- predict(prophet_model, future)
+  
+  forecast_test <- forecast |> 
+    filter(ds > as.Date("2019-01-01")) |> 
+    select(ds, yhat)
+  
+  comparison <- left_join(test_data, forecast_test, by = "ds")
+  
+  comparison <- comparison |> 
+    mutate(error = y - yhat,
+           abs_error = abs(error),
+           squared_error = error^2,
+           mape = abs_error / y * 100)
+  
+  mae <- mean(comparison$abs_error)
+  rmse <- sqrt(mean(comparison$squared_error))
+  mape <- mean(comparison$mape)
+  
+  print(paste("MAE:", round(mae, 2)))
+  print(paste("RMSE:", round(rmse, 2)))
+  print(paste("MAPE:", round(mape, 2), "%"))
+  
+  ggplot(comparison, aes(x = ds)) +
+    geom_line(aes(y = y, color = "Actual")) +
+    geom_line(aes(y = yhat, color = "Forecast")) +
+    labs(title = paste("Actual vs Forecast -", country_name),
+         x = "Year", y = "Inflation",
+         color = "Legend") +
+    theme_minimal()
+  
+  
+}
+
+prophet_function("Tanzania")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
